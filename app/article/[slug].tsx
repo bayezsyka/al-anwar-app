@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import RenderHtml from "react-native-render-html";
 import { Article, getArticleDetail } from "../../lib/api";
 

@@ -9,12 +9,12 @@ import {
   Image,
   Pressable,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Article, PaginatedMeta, getArticles } from "../../lib/api";
 
 const PRIMARY_GREEN = "#008362";

@@ -10,16 +10,19 @@ import {
   Image,
   Linking,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  Article,
   DoaItem,
   getHijriToday,
+  getArticles,
   getRandomDoa,
   getRutinanSchedule,
   getSholatToday,
@@ -192,6 +195,7 @@ function computeNearestRutinan(
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [cityId, setCityId] = useState<string>("1219");
   const [lokasi, setLokasi] = useState<string>("Kota Semarang");
   const [sholatJadwal, setSholatJadwal] = useState<SholatJadwal | null>(null);
@@ -214,6 +218,9 @@ export default function HomeScreen() {
     event: Rutinan;
     date: Date;
   } | null>(null);
+  const [headlineArticles, setHeadlineArticles] = useState<Article[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [errorArticles, setErrorArticles] = useState<string | null>(null);
 
   // Animation values
   const [scaleAnim] = useState(new Animated.Value(1));
@@ -294,6 +301,24 @@ export default function HomeScreen() {
     fetchRutinan();
   }, []);
 
+  // fetch headline artikel
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoadingArticles(true);
+        setErrorArticles(null);
+        const res = await getArticles(1);
+        setHeadlineArticles(res.data.slice(0, 3));
+      } catch (e: any) {
+        setErrorArticles(e?.message || "Gagal memuat artikel terbaru");
+      } finally {
+        setLoadingArticles(false);
+      }
+    };
+
+    fetchArticles();
+  }, []);
+
   // hitung next sholat + countdown
   useEffect(() => {
     if (!sholatJadwal) return;
@@ -329,6 +354,10 @@ export default function HomeScreen() {
 
   const isNearestToday =
     nearestRutinan && isSameCalendarDate(nearestRutinan.date, today);
+
+  const horizontalPadding = Math.max(16, Math.min(24, width * 0.06));
+  const contentWidth = Math.min(760, width - horizontalPadding * 2);
+  const blockGap = width < 360 ? 12 : 16;
 
   const handleUpdateLocationPress = () => {
     Animated.sequence([
@@ -417,12 +446,12 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
       <StatusBar barStyle="dark-content" backgroundColor={BACKGROUND_COLOR} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
+      <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
+        <View style={[styles.headerContent, { maxWidth: contentWidth }]}>
           <Image
             source={{
               uri: "https://alanwarpakijangan.com/images/logoarab.png",
@@ -445,11 +474,18 @@ export default function HomeScreen() {
       {/* Main Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: horizontalPadding,
+            gap: blockGap,
+            alignItems: "center",
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Prayer Time Card */}
-        <View style={styles.prayerCard}>
+        <View style={[styles.prayerCard, { maxWidth: contentWidth }]}>
           {loadingSholat && !sholatJadwal ? (
             <View style={styles.prayerLoading}>
               <ActivityIndicator color={CARD_BACKGROUND} size="large" />
@@ -506,11 +542,11 @@ export default function HomeScreen() {
         )}
 
         {/* Quick Actions */}
-        <View style={styles.section}>
+        <View style={[styles.section, { maxWidth: contentWidth }]}>
           <Text style={styles.sectionTitle}>Menu Utama</Text>
           <View style={styles.quickActions}>
             <Pressable
-              style={styles.quickAction}
+              style={[styles.quickAction, { flexBasis: width < 420 ? "48%" : "30%" }]}
               onPress={() => handleNavPress("../article")}
             >
               <View
@@ -548,7 +584,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Next Routine */}
-        <View style={styles.section}>
+        <View style={[styles.section, { maxWidth: contentWidth }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Rutinan Terdekat</Text>
             <Pressable onPress={() => router.push("/rutinan")}>
@@ -603,8 +639,69 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Headline Articles */}
+        <View style={[styles.section, { maxWidth: contentWidth }]}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Headline</Text>
+            <Pressable onPress={() => router.push("/article")}>
+              <Text style={styles.seeAllText}>Lihat Semua</Text>
+            </Pressable>
+          </View>
+
+          {loadingArticles && !headlineArticles.length ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={PRIMARY_COLOR} />
+              <Text style={styles.loadingText}>Memuat artikel...</Text>
+            </View>
+          ) : errorArticles ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color={TEXT_LIGHT} />
+              <Text style={styles.errorText}>{errorArticles}</Text>
+            </View>
+          ) : headlineArticles.length ? (
+            <View style={styles.headlineList}>
+              {headlineArticles.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.headlineCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/article/[slug]",
+                      params: { slug: item.slug },
+                    })
+                  }
+                >
+                  <View style={styles.headlineTextBlock}>
+                    <Text style={styles.headlineTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.headlineMeta} numberOfLines={1}>
+                      {item.category?.name ?? "Tanpa Kategori"} • {item.date ?? "-"}
+                    </Text>
+                    <Text style={styles.headlineExcerpt} numberOfLines={2}>
+                      {item.excerpt}
+                    </Text>
+                  </View>
+                  {item.image_url ? (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={styles.headlineImage}
+                      resizeMode="cover"
+                    />
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="newspaper" size={24} color={TEXT_LIGHT} />
+              <Text style={styles.emptyText}>Belum ada artikel.</Text>
+            </View>
+          )}
+        </View>
+
         {/* Today's Prayer */}
-        <View style={styles.section}>
+        <View style={[styles.section, { maxWidth: contentWidth }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Doa Hari Ini</Text>
             <Pressable onPress={() => router.push("/doa")}>
@@ -646,7 +743,6 @@ const styles = StyleSheet.create({
     backgroundColor: BACKGROUND_COLOR,
   },
   header: {
-    paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 16,
     backgroundColor: BACKGROUND_COLOR,
@@ -657,6 +753,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 12,
   },
   logo: {
     width: 120,
@@ -666,11 +764,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexShrink: 1,
   },
   locationText: {
     fontSize: 14,
     color: TEXT_PRIMARY,
     fontWeight: "500",
+    flexShrink: 1,
   },
   locationUpdateText: {
     fontSize: 12,
@@ -681,13 +781,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    gap: 20,
+    paddingVertical: 16,
   },
   prayerCard: {
     backgroundColor: PRIMARY_COLOR,
     borderRadius: 20,
     padding: 24,
+    alignSelf: "stretch",
     shadowColor: PRIMARY_COLOR,
     shadowOffset: {
       width: 0,
@@ -755,6 +855,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     borderColor: BORDER_COLOR,
+    alignSelf: "stretch",
     flexDirection: "column",
     gap: 8,
   },
@@ -797,6 +898,7 @@ const styles = StyleSheet.create({
 
   section: {
     gap: 12,
+    alignSelf: "stretch",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -815,10 +917,13 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: 12,
   },
   quickAction: {
     flex: 1,
+    minWidth: 140,
     alignItems: "center",
     gap: 8,
   },
@@ -834,6 +939,42 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: TEXT_PRIMARY,
     textAlign: "center",
+  },
+  headlineList: {
+    gap: 12,
+  },
+  headlineCard: {
+    backgroundColor: CARD_BACKGROUND,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER_COLOR,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  headlineTextBlock: {
+    flex: 1,
+    gap: 6,
+  },
+  headlineTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: TEXT_PRIMARY,
+  },
+  headlineMeta: {
+    fontSize: 12,
+    color: TEXT_LIGHT,
+  },
+  headlineExcerpt: {
+    fontSize: 13,
+    color: TEXT_SECONDARY,
+  },
+  headlineImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: "#E2E8F0",
   },
   loadingContainer: {
     flexDirection: "row",

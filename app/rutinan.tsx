@@ -6,13 +6,13 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getRutinanSchedule, Rutinan } from "../lib/api";
 
 const PRIMARY_GREEN = "#008362";

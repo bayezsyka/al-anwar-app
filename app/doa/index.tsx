@@ -8,12 +8,12 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getDoaBySource } from "../../lib/api";
 
 const PRIMARY_GREEN = "#008362";
